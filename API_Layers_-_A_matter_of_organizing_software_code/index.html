@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>API Layers</title>
+
+		<meta name="description" content="A matter of organizing software code.">
+		<meta name="author" content="Krzysztof Buszewicz">
+
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/black.css" id="theme">
+
+		<!-- Code syntax highlighting -->
+		<link rel="stylesheet" href="lib/css/solarized-dark.css">
+
+		<link rel="stylesheet" href="css/custom.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+	</head>
+
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section>
+					<h1>API Layers</h1>
+					<h3>A matter of organizing software code</h3>
+					<p>
+						<small><a href="https://www.facebook.com/kbuszewicz">Krzysztof Buszewicz</a></small>
+					</p>
+				</section>
+
+        <section>
+        	<section>
+            <h2>1. Introduction</h2>
+            <p>Magic</p>
+            <img id="magic_pic" src="img/magic.jpg">
+          </section>
+          <section>
+            <h2>1. Introduction</h2>
+            <p>Abstraction</p>
+            <img id="abstraction_pic" src="img/abstraction.jpg">
+          </section>
+          <section>
+            <h2>1. Introduction</h2>
+            <p>Design</p>
+            <img id="bricks_pic" src="img/bricks.jpg">
+          </section>
+          <section>
+            <h2>1. Introduction</h2>
+            <ul>
+              <li class="fragment">Onions have layers.</li>
+              <li class="fragment">Ogres have layers.</li>
+              <li class="fragment">Software has layers.</li>
+            </ul>
+          </section>
+        </section>
+
+				<section id="2_api-flow_a">
+					<h2>2. API Flow</h2>
+					<p>Input</p>
+					<small>
+						<span class="fragment highlight-blue"  data-fragment-index="6">
+							<span class="fragment" data-fragment-index="2">&rarr; whitelisting &rarr;</span>
+							<span class="fragment" data-fragment-index="3">transformation &rarr;</span>
+							<span class="fragment" data-fragment-index="4">validation &rarr;</span>
+						</span>
+					</small>
+					<p>Action <span class="fragment" data-fragment-index="1">(Result)</span></p>
+					<small>
+						<span class="fragment highlight-blue"  data-fragment-index="6">
+							<span class="fragment"  data-fragment-index="5">&rarr; presentation &rarr;</span>
+						</span>
+					</small>
+					<p>Output</p>
+				</section>
+
+        <section id="2_api-flow_b">
+          <section>
+            <h2>2. API Flow - example</h2>
+
+            <p>POST https://justiceleague.us/applications</p>
+
+            <p>Params</p>
+            <ul>
+              <li>first_name: string</li>
+              <li>last_name: string</li>
+              <li>skills: array (string)</li>
+            </ul>
+          </section>
+          <section>
+            <h2>2. API Flow - example</h2>
+            <pre><code data-trim data-noescape>
+// params
+
+{
+  "first_name": "John",
+  "last_name": "Rambo",
+  "skills": ["run", "shoot", "yell"],
+  "status": "dead"
+}
+            </code></pre>
+
+            <pre class="fragment"><code data-trim data-noescape>
+class LeagueApplicationsController < ApplicationControoler
+  # ...
+
+  private
+
+  def application_params
+    params.permit(:first_name, :last_name, :skills)
+  end
+end
+            </code></pre>
+          </section>
+          <section>
+            <h2>2. API Flow - example</h2>
+            <pre><code data-trim data-noescape>
+// application params (filtered)
+
+{
+  "first_name": "John",
+  "last_name": "Rambo",
+  "skills": ["run", "shoot", "yell"]
+}
+            </code></pre>
+
+            <pre class="fragment"><code data-trim data-noescape>
+class LeagueApplicationsController < ApplicationControoler
+  # ...
+
+  private
+
+  def clean_application_params
+    ApplicationParamsTransformer.clean(application_params)
+  end
+
+  def application_params
+    params.permit(:first_name, :last_name, :skills)
+  end
+end
+            </code></pre>
+          </section>
+          <section>
+            <h2>2. API Flow - example</h2>
+            <pre><code data-trim data-noescape>
+// clean application params (transformed)
+
+{
+  "first_name": "john",
+  "last_name": "rambo",
+  "skills": "skills": 'run,shoot,yell',
+}
+            </code></pre>
+
+            <pre class="fragment"><code data-trim data-noescape>
+class LeagueApplicationsController < ApplicationControoler
+  def create
+    form = CreateLeagueApplicationForm.new(clean_application_params)
+    result = CreateLeagueApplication.call(form: form)
+    # ...
+  end
+
+  # ...
+end
+            </code></pre>
+          </section>
+
+          <section>
+            <h2>2. API Flow - example</h2>
+
+            <pre><code data-trim data-noescape>
+class CreateLeagueApplication
+  # ...
+
+  def call
+    return result(error: validation_failed) unless form.valid?
+
+    application.save!
+    result(object: application)
+  end
+
+  # ...
+end
+            </code></pre>
+
+            <pre class="fragment"><code data-trim data-noescape>
+// validation
+
+{
+  "first_name": "john",                   // ok!
+  "last_name": "rambo",                   // ok!
+  "skills": "skills": 'run,shoot,yell',   // ok!
+}
+            </code></pre>
+          </section>
+
+          <section>
+            <h2>2. API Flow - example</h2>
+            <pre><code data-trim data-noescape>
+class LeagueApplicationsController < ApplicationControoler
+  def create
+    form = CreateLeagueApplicationForm.new(clean_application_params)
+    result = CreateLeagueApplication.call(form: form)
+
+    raise result.error if result.error?
+    render json: NewApplicationPresenter.new(application: result.object),
+           status: 200
+  end
+
+  # ...
+end
+            </code></pre>
+
+            <pre class="fragment"><code data-trim data-noescape>
+// returned json
+
+{
+  "status": 201,
+  "message": "Dear John, your application was saved.",
+  "application": {
+    // ...
+  }
+}
+            </code></pre>
+
+          </section>
+        </section>
+
+				<section id="3_api-layers">
+				  <section>
+				    <h2>3. API Layers</h2>
+				  </section>
+
+				  <section>
+				    <h2>3.1. Origin and Responsibilities</h2>
+				    <table>
+				      <tbody>
+				        <tr class="fragment" data-fragment-index="1">
+				          <td>Domain Logic</td>
+				          <td class="fragment highlight-blue" data-fragment-index="11">Model</td>
+				        </tr>
+								<tr class="fragment" data-fragment-index="2">
+				          <td>Receiving Requests</td>
+				          <td class="fragment highlight-blue" data-fragment-index="11">Routing</td>
+				        </tr>
+								<tr class="fragment" data-fragment-index="3">
+				          <td>Performing Actions</td>
+				          <td class="fragment highlight-blue" data-fragment-index="11">Controller</td>
+				        </tr>
+								<tr class="fragment" data-fragment-index="4">
+				          <td>Action</td>
+				          <td class="fragment highlight-blue" data-fragment-index="11">Service</td>
+				        </tr>
+								<tr class="fragment" data-fragment-index="5">
+				          <td>Validation</td>
+				          <td class="fragment highlight-blue" data-fragment-index="11">Form</td>
+				        </tr>
+								<tr class="fragment" data-fragment-index="6">
+				          <td>Whitelisting</td>
+				          <td class="fragment highlight-blue" data-fragment-index="11">Controller/InputTransformer</td>
+				        </tr>
+								<tr class="fragment" data-fragment-index="7">
+				          <td>Transformation</td>
+				          <td class="fragment highlight-blue" data-fragment-index="11">InputTransformer</td>
+				        </tr>
+								<tr class="fragment" data-fragment-index="8">
+				          <td>Presentation</td>
+				          <td class="fragment highlight-blue" data-fragment-index="11">Presenter</td>
+				        </tr>
+								<tr class="fragment" data-fragment-index="9">
+				          <td>Behavior Variations</td>
+				          <td class="fragment highlight-blue" data-fragment-index="11">Configuration</td>
+				        </tr>
+								<tr class="fragment" data-fragment-index="10">
+				          <td>...</td>
+				          <td class="fragment highlight-blue" data-fragment-index="11">...</td>
+				        </tr>
+				      </tbody>
+				    </table>
+				  </section>
+
+					<section>
+						<h2>3.2. Code Examples: Controller</h2>
+						<pre><code data-trim data-noescape>
+class CheckInsController < ApplicationController
+  include Authorization
+
+  before_action :authorize!, only: :create
+
+  def create
+    form = CreateCheckInForm.new(check_in_params)
+    result = CheckIns::Create.call(form: form)
+
+    raise result.error unless result.success?
+    render json: result.object, status: result.object[:status]
+  end
+
+  private
+
+  def check_in_params
+    params.permit(:email, location: [:latitude, :longitude])
+  end
+end
+						</code></pre>
+					</section>
+
+					<section>
+						<h2>3.2 Code Examples: Form</h2>
+						<pre><code data-trim data-noescape>
+class CreateDispatchOrderForm < Form
+  attribute :comment, String
+  attribute :customer_email, String
+  attribute :dispatch_date, DispatchDateForm
+  attribute :dispatch_point_id, String
+  attribute :parcel_ids, [String]
+  attribute :reference, String
+
+  def self.settings
+    Settings.form.create_dispatch_order
+  end
+
+  validates :comment,
+            length: { maximum: settings.comment.max_length }
+
+  validates :parcel_ids,
+            parcels_collection: { maximum: settings.parcel_ids.max_number,
+                                  check_services_mixing: true }
+
+  validates :reference,
+            length: { maximum: settings.reference.max_length }
+
+  validates_subform :dispatch_date
+
+  def to_hash
+    dispatch_order_data.compact
+  end
+
+  private
+
+  def dispatch_order_data
+    { comment: comment,
+      customer_email: customer_email,
+      date_range: dispatch_date_as_hash,
+      dispatch_point_name: dispatch_point_id,
+      parcel_codes: parcel_ids,
+      reference: reference }
+  end
+
+  def dispatch_date_as_hash
+    dispatch_date && dispatch_date.to_hash || {}
+  end
+end
+						</code></pre>
+					</section>
+
+					<section>
+						<h2>3.2 Code Examples: Service</h2>
+						<pre><code data-trim data-noescape>
+class InitPushCycle < Service
+  attr_reader :push_cycle, :create_campaign_result
+
+  def initialize
+    @push_cycle = PushCycle.new
+  end
+
+  def call
+    @create_campaign_result = CreateCampaign.call(push_cycle: push_cycle)
+
+    if create_campaign_result.error?
+      build_result(error: create_campaign_result.error)
+    else
+      push_cycle.campaign_guid = campaign_data['guid']
+      push_cycle.save
+      build_result(object: push_cycle)
+    end
+  end
+
+  private
+
+  def campaign_data
+    JSON.parse(create_campaign_result.object)['campaign']
+  end
+end
+						</code></pre>
+					</section>
+
+					<section>
+						<h2>3.2 Code Examples: Result</h2>
+						<pre><code data-trim data-noescape>
+class Service
+  class Result
+    attr_reader :error, :object
+
+    def initialize(attrs = {})
+      @object = attrs[:object]
+      @error = attrs[:error]
+    end
+
+    def error?
+      error.present?
+    end
+  end
+end
+						</code></pre>
+					</section>
+
+					<section>
+						<h2>3.2 Code Examples: Sinatra</h2>
+						<pre><code data-trim data-noescape>
+require './application_setup'
+
+class Application < Sinatra::Base
+  include InputHelper
+
+  post '/confirmations' do
+    result = ConfirmPushCycle.call(campaign_guid: input[:campaign_guid],
+                                   type: input[:type],
+                                   details: input[:details])
+
+    halt result.error.status, json(result.error) if result.error?
+    status 201; json(result.object)
+  end
+end
+						</code></pre>
+					</section>
+
+					<section>
+						<h2>3.3. Tools Examples</h2>
+						<h3>Form</h3>
+						<p><a class="fragment" href="https://github.com/solnic/virtus)">Virtus</a></p>
+						<p><a class="fragment" href="http://api.rubyonrails.org/classes/ActiveModel/Validations.html">ActiveModel::Validations</a></p>
+						<p><a class="fragment" href="https://github.com/thoughtbot/shoulda-matchers">Shoulda Matchers</a></p>
+
+						<h3>Service</h3>
+						<p><a class="fragment" href="https://github.com/basecrm/method_struct">Method Struct</a></p>
+					</section>
+
+					<section>
+						<h2>3.3. Tools Examples</h2>
+						<h3>Presenter</h3>
+						<p><a class="fragment" href="https://github.com/rails-api/active_model_serializers">ActiveModelSerializers</a></p>
+						<p><a class="fragment" href="http://ruby-doc.org/stdlib-2.2.0/libdoc/delegate/rdoc/SimpleDelegator.html">SimpleDelegator</a></p>
+
+						<h3>Configuration</h3>
+						<p><a class="fragment" href="https://github.com/railsconfig/config">Config</a></p>
+					</section>
+				</section>
+
+				<section>
+					<h2>4. API Errors</h2>
+					<ul>
+						<li class="fragment">They happen.</li>
+						<li class="fragment">They may be a part of business logic.</li>
+						<li class="fragment">They should provide an information.</li>
+					</ul>
+
+					<blockquote class="fragment" cite="https://github.com/buszu/json_error" style="font-size: 85%;">
+						Error is something that went wrong (what? = key) under certain circumstances (when? = context).
+					</blockquote>
+
+					<p class="fragment"><a href="https://github.com/buszu/json_error">https://github.com/buszu/json_error</a></p>
+				</section>
+
+				<section>
+					<h2>5. Documenting API</h2>
+					<p class="fragment">What's important?</p>
+					<ul>
+						<li class="fragment">Treat endpoint separately</li>
+						<li class="fragment">Give all information about every endpoint</li>
+					</ul>
+				</section>
+
+				<section id="questions">
+					<h2>Thank them</h2>
+					<ul>
+						<li><a href="http://www.poodr.com">http://www.poodr.com</a></li>
+						<li><a href="http://helion.pl/ksiazki/czysty-kod-podrecznik-dobrego-programisty-robert-c-martin,czykod.htm">http://helion.pl/ksiazki/czysty-kod-podrecznik-dobrego-programisty-robert-c-martin,czykod.htm</a></li>
+						<li><a href="http://helion.pl/ksiazki/myslenie-obiektowe-w-programowaniu-wydanie-iv-matt-weisfeld,myobp4.htm">http://helion.pl/ksiazki/myslenie-obiektowe-w-programowaniu-wydanie-iv-matt-weisfeld,myobp4.htm</a></li>
+					</ul>
+				</section>
+
+				<section>
+					<h1>Thank you</h1>
+					<p>
+						<small><a href="https://www.facebook.com/kbuszewicz">.kb</a></small>
+					</p>
+				</section>
+			</div>
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.js"></script>
+		<script>
+
+			// Full list of configuration options available at:
+			// https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				history: true,
+				center: true,
+
+				transition: 'slide', // none/fade/slide/convex/concave/zoom
+
+				// Optional reveal.js plugins
+				dependencies: [
+					{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'plugin/zoom-js/zoom.js', async: true },
+					{ src: 'plugin/notes/notes.js', async: true }
+				]
+			});
+
+		</script>
+	</body>
+</html>

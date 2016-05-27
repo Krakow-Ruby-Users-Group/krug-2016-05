@@ -1,0 +1,19 @@
+.reveal section img {
+  border: none;
+  width: 500px;
+  height: 250px;
+}
+
+.reveal section img#bricks_pic {
+  border: none;
+  width: 80%;
+  height: 80%;
+}
+
+.reveal pre {
+  width: 100%;
+}
+
+pre code {
+  width: 1000px;
+}
